@@ -157,6 +157,7 @@ Finally, Biotin-positive cells are analyzed to quantify:
 - the percentage of Biotin⁺ cells within each mature DC cluster;
 - the contribution of each cluster to the total Biotin⁺ mature DC population;
 - differences in these distributions between 24 h and 72 h.
+- the correlation between ligand/receptor gene expression and  Biotin signal intensity
 
 These analyses provide the basis for comparing the DC populations participating in recorded DC–T cell interactions at different stages of T cell priming.
 
@@ -177,6 +178,8 @@ patchwork
 cowplot
 RColorBrewer
 scales
+doParallel
+scSeqComm
 ```
 
 ## Main Seurat Objects

@@ -298,3 +298,53 @@ ggplot(Biotin_mdc72_composition,
   )
 
 
+#########################################################################
+######################## Correlation analysis  ##########################
+# mDC Biotin+
+mdc72h_positive <- subset(mdc72h, Biotin_status == "positive")
+
+# gene expression and biotin
+gene_expr <- GetAssayData(mdc72h_positive, "RNA")
+biotin <- Seurat::GetAssayData(mdc72h_positive,assay = "ADT",layer = "data")["Biotin-TotalSeqC", ]
+
+# Spearman correlation
+library(doParallel)
+doParallel::registerDoParallel(cores = 5)
+res <- foreach(i = 1:nrow(gene_expr), .combine = "rbind") %dopar%
+{
+    r <- cor.test(biotin, gene_expr[i,], method = "spearman")
+    data.frame(corr = r$estimate, pval = r$p.value)
+}
+row.names(res) <- row.names(gene_expr)
+res$gene <- row.names(res)
+
+# remove NA, keep significant correlations (after FDR) and  order by correlation
+res <- res[ !(is.na(res$corr)),]
+res <- res[order(res$corr),]
+res$order <- 1:nrow(res)
+res$pval_adj <- p.adjust(res$pval, "fdr")
+res <- res[res$pval_adj < 0.05,]
+
+# retreive LR pairs from CellTalkDB
+?scSeqComm::LR_pairs_Shao_2020_mouse
+LRpairs <- scSeqComm::LR_pairs_Shao_2020_mouse
+R <- unique(LRpairs$receptor) # receptors
+L <- unique(LRpairs$ligand) # ligands
+
+# filter for ligand and receptor genes and positive correlations
+LRres <- res[res$gene %in% c(R, L),]
+
+# plot
+ggplot(LRres[LRres$corr>0,] , aes(x = order ,y = corr, color = gene %in% R))+ geom_point() +
+  scale_color_manual(values = c("TRUE" = "#3288BD" , "FALSE" = "#F46D43"),
+                     name = "Gene type",                     # legend title
+                     labels = c("FALSE" = "Ligand", "TRUE" = "Receptor"))+
+  ggrepel::geom_text_repel(
+    data = LRres[LRres$corr>0,],
+    aes(label = gene),
+    size = 5,
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.3, "lines"), show.legend = FALSE
+  ) + xlab("ligand/receptor genes") + ylab("Spearman coefficient") + ggtitle("mDCs_positive")+ theme_bw()+
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(), panel.grid = element_blank())
